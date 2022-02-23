@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="JEDao">
+
+	<select id="JEProductTotal" resultType="int">
+		SELECT count(*) FROM product
+	</select>
+	
+	<select id="JEProductListAll" parameterType="Product" resultType="Product">
+		SELECT *
+		FROM (
+        		SELECT rownum rn, a.*
+        		FROM (SELECT * FROM product ORDER BY pno) a
+     		 )
+		WHERE rn BETWEEN #{start} AND #{end}
+	</select>
+	
+	<select id="JEProductSelOne" parameterType="int" resultType="Product">
+		SELECT * FROM product WHERE pno = #{pno}
+	</select>
+	
+	<update id="JEProductUpdate" parameterType="Product">
+		UPDATE product SET title=#{title}, category=#{category}, genre=#{genre}, 
+						   year=#{year}, country=#{country}, 
+						   director=#{director}, casting=#{casting}, price=#{price},
+						   description=#{description}, p_img=#{p_img}, p_video=#{p_video}
+		WHERE pno=#{pno}
+	</update>
+	
+	<select id="JESelectManager" resultType="Product">
+		SELECT * FROM product
+	</select>
+	
+	<insert id="insertProduct" parameterType="Product">
+		INSERT INTO product(PNO, title, category, genre, year, country, director, casting, description, price, p_img, p_video)
+		VALUES(PRODUCT_PNO_SEQ.nextval, #{title}, #{category}, #{genre}, #{year}, #{country}, #{director}, #{casting}, #{description}, #{price}, #{p_img}, #{p_video})
+	</insert>
+	
+	<delete id="deleteProduct" parameterType="Product">
+		DELETE FROM product
+		WHERE pno=#{pno}
+	</delete>
+	
+	<!-- 카테고리별 상품 리스트: 1차 분류 -->
+	<select id="products_1" resultType="Product">
+		SELECT p.pno, p.title, p.category, p.genre, p.p_img, c.category, c.genre, c.cat_name, c.gen_name
+		FROM product p
+		INNER JOIN category c
+		ON p.genre = c.genre
+		WHERE p.genre = #{genre} OR c.category = #{category}
+	</select>
+	
+	<!-- 카테고리별 상품 리스트: 2차 분류 -->
+	<select id="products_2" resultType="Product">
+		SELECT p.pno, p.title, p.category, p.genre, p.p_img, c.category, c.genre, c.cat_name, c.gen_name
+		FROM product p
+		INNER JOIN category c
+		ON p.genre = c.genre
+		WHERE p.genre = #{genre}
+	</select>
+	
+	<!-- 카테고리 별 나열 -->
+	<select id="HTcategoryList" parameterType="int" resultType="Product">
+      SELECT pno, title, category, genre, p_img
+      from product
+      where category like #{c}
+   </select>
+   
+   <!-- 장르 별 나열 -->
+   <select id="HTgenreList" parameterType="int" resultType="Product">
+      SELECT pno, title, category, genre, p_img
+      from product
+      where genre like #{g}
+   </select>
+	
+	<!-- 상품 상세정보 -->
+	<!-- <select id="JEProductDetail" parameterType="int" resultType="Product">
+		SELECT * FROM product WHERE pno = #{pno}
+	</select> -->
+	<select id="JEProductDetail" parameterType="int" resultType="Product">
+		SELECT * FROM product
+		WHERE pno = #{pno}
+	</select>
+	
+ 	<!-- 카트 담기 -->
+	<insert id="addCart" parameterType="Cart">
+ 		INSERT INTO cart (no, id, pno, title, price)
+ 		VALUES (cart_no_seq.NEXTVAL, #{id}, #{pno}, #{title}, #{price})
+	</insert>
+	
+	<!-- 카트 중복담기 금지 -->
+	<select id="orderCheck" parameterType="Product" resultType="int">
+		SELECT count(*)
+		FROM cart
+		WHERE pno = #{pno}
+		AND id = #{id}
+	</select>
+	
+	<!-- 카트 리스트 -->
+	<select id="cartList" resultType="Cart">
+		SELECT c.no, c.count, p.pno, m.id, p.title, p.price, p.p_img
+		FROM member m, product p, cart c
+		WHERE m.id = c.id
+		AND c.pno = p.pno
+		AND c.id = #{id}
+		ORDER BY no DESC
+	</select>
+	
+	<!-- 카트 삭제 -->
+	<delete id="deleteCart">
+		DELETE cart
+		WHERE no = #{no}
+		AND id = #{id}
+	</delete>
+	
+	<!-- 주문 정보 -->
+	<insert id="orderInfo" parameterType="Payment">
+		INSERT INTO payment(orderId, id, totalPrice)
+		VALUES(#{orderId}, #{id}, #{totalPrice} )
+	</insert>
+	
+	<!-- 주문 상세 정보 --> <!-- insert select문 : select에 있는 다수의 데이터 입력 가능 -->
+	<insert id="orderInfo_Details" parameterType="PaymentDetails">
+		INSERT INTO paymentDetails(detailNo, orderId, pno)
+			SELECT paymentDetails_detailNo_seq.nextval, #{orderId}, pno
+			FROM cart
+	</insert>
+	
+	<!-- 결제 후 카트 비우기 -->
+	<delete id="cartAllDelete">
+		DELETE cart
+		WHERE id = #{id}
+	</delete>
+	
+	<!-- 결제 후 주문 목록 -->
+	<select id="orderList" resultType="Payment">
+		SELECT orderId, id, totalPrice, p_date
+		FROM payment
+		WHERE id = #{id}
+		ORDER BY p_date DESC
+	</select>
+	
+	<!-- 결제 후 주문 상세 목록 -->
+	<select id="orderView" resultType="OrderList">
+		SELECT
+			o.orderId, o.id, o.totalPrice, o.p_date, 
+			d.detailNo, d.pno, 
+			p.title, p.p_img, p.price
+		FROM payment o
+			INNER JOIN paymentDetails d
+				ON o.orderId = d.orderId
+			INNER JOIN product p
+				ON d.pno = p.pno
+		WHERE o.id = #{id}
+		AND o.orderId = #{orderId}
+	</select>
+
+	<select id="cartCheck" resultType="int" parameterType="Cart">
+		select count(*) from cart where pno = #{pno}
+	</select>
+	
+</mapper>
+
+
+
